@@ -7,12 +7,14 @@ import json
 import logging
 import urllib2
 from argparse import ArgumentParser
+from datetime import datetime
 import copy
 
 __all__ = ['main']
 
 
-gfwlist_url = 'https://autoproxy-gfwlist.googlecode.com/svn/trunk/gfwlist.txt' # ban with gfw, you need proxy to access
+# gfwlist_url = 'https://autoproxy-gfwlist.googlecode.com/svn/trunk/gfwlist.txt' # ban with gfw, you need proxy to access
+gfwlist_url = 'https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt'
 
 
 def parse_args():
@@ -140,6 +142,7 @@ def generate_pac(domains, proxy):
     domains_dict = {}
     for domain in domains:
         domains_dict[domain] = 1
+    proxy_content = proxy_content.replace('__GENDATE__', json.dumps(str(datetime.now())))
     proxy_content = proxy_content.replace('__PROXY__', json.dumps(str(proxy)))
     proxy_content = proxy_content.replace('__DOMAINS__', json.dumps(domains_dict, indent=2))
     return proxy_content
@@ -167,9 +170,15 @@ def main():
             print 'Downloading user rules file from %s' % args.user_rule
             user_rule = urllib2.urlopen(args.user_rule, timeout=10).read()
 
+    print 'Decoding gfwlist'
     content = decode_gfwlist(content)
+    with open('gfwlist_decoded.txt', 'w') as f:
+            f.write(content)
+    print 'Parsing gfwlist'
     domains = parse_gfwlist(content, user_rule)
+    print 'Reducing domains'
     domains = reduce_domains(domains)
+    print 'Generating target PAC file: %s' % args.output
     pac_content = generate_pac(domains, args.proxy)
     with open(args.output, 'w') as f:
         f.write(pac_content)
